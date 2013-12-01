@@ -1,4 +1,4 @@
-var whenIn = angular.module("WhenIn", ['ionic', 'ngRoute', 'ngAnimate', 'google-maps']);
+var whenIn = angular.module("WhenIn", ['ionic', 'ngRoute', 'ngAnimate']);
 
 whenIn.config(function($routeProvider, $locationProvider) {
     $routeProvider.when('/home', {
@@ -14,6 +14,21 @@ whenIn.config(function($routeProvider, $locationProvider) {
     $routeProvider.when('/register', {
         templateUrl: 'templates/register.html',
         controller: 'RegCtrl'
+    });
+    
+    $routeProvider.when('/user', {
+        templateUrl: 'templates/user.html',
+        controller: 'UserCtrl'
+    });
+    
+    $routeProvider.when('/archive', {
+        templateUrl: 'templates/archive.html',
+        controller: 'ArchiveCtrl'
+    });
+    
+    $routeProvider.when('/add', {
+        templateUrl: 'templates/add.html',
+        controller: 'AddCtrl'
     });
     
     $routeProvider.otherwise({
@@ -58,8 +73,34 @@ whenIn.controller('LoginCtrl', function($scope, $location, $timeout) {
 
 });
 
-whenIn.controller('HomeCtrl', function($scope, $location, $timeout, Modal, $http) {
+whenIn.controller('MenuCtrl', function($scope, $location) {
+       
+    $scope.showProfile = function() {
+        $location.path('/user');
+    };  
     
+    $scope.showArchive = function() {
+        $location.path('/archive');
+    };
+    
+    $scope.addQuestion = function() {
+        $location.path('/add');
+    };
+    
+    $scope.goHome = function() {
+        $location.path('/home');
+    };
+    
+    $scope.logout = function() {
+        Parse.User.logOut();
+        $location.path('/login');
+    };
+    
+
+});
+
+whenIn.controller('HomeCtrl', function($scope, $location, $timeout, Modal, $http) {
+ 
     $scope.toggleMenu = function() {
           $scope.sideMenuController.toggleLeft();
     };
@@ -92,74 +133,99 @@ whenIn.controller('HomeCtrl', function($scope, $location, $timeout, Modal, $http
     });
   };  
       
-   
-    // Map stuff
-    
-    
-    $scope.center = { latitude: 59.92960173988886, 
-                    longitude: 10.731727894442757, };
-    
-    $scope.markClick = true;
-    $scope.zoom = 16;
-    $scope.fit = true;
-    
-    $scope.geolocationAvailable = navigator.geolocation ? true : false;
-
-    $scope.markers = [];
-		
-    $scope.markerLat = null;
-    $scope.markerLng = null;
-    
-    $scope.addmarker = function () {
-        $scope.markers.push({
-            latitude: parseFloat($scope.markerLat),
-            longitude: parseFloat($scope.markerLng)
-        });
-        
-        $scope.markerLat = null;
-        $scope.markerLng = null;
-    };
-    
-    $scope.addquestion = function() {
-        $location.path('/addquestion');
-    };
-    
-    (function() {  
-        
-        if ($scope.geolocationAvailable) {
-            
-            navigator.geolocation.getCurrentPosition(function (position) {
-                $scope.center = {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                };
-               $scope.markers.push({latitude: position.coords.latitude,
-                    longitude: position.coords.longitude});
-                
-                $scope.latitude = $scope.markers[0].latitude;
-                $scope.longitude = $scope.markers[0].longitude;
-
-                $scope.urlinfo = "http://maps.googleapis.com/maps/api/geocode/json?latlng=" + $scope.latitude + "," + $scope.longitude + "&sensor=true";
-                
-                $http.get($scope.urlinfo).then(function(res){
-                
-                    $scope.findmeh = res.data;
-                    console.log($scope.findmeh.results[2].address_components[0].long_name);
-                  
-                });
-                
-                $scope.$apply();
-                
-                
-                
-            }, function () {
-                
-            });
-        }	
-    })();
 });
 
 whenIn.controller('RegCtrl', function($scope, $location, $timeout) {
     
+});
+
+whenIn.controller('ArchiveCtrl', function($scope, $location, $timeout) {
+        
+    $scope.toggleMenu = function() {
+          $scope.sideMenuController.toggleLeft();
+    };
+    
+    var qQuery = Parse.Object.extend("Questions");
+    
+    var query = new Parse.Query(qQuery);
+    query.descending("createdAt");
+
+    var questions = [];
+    
+     query.find({
+      success: function(results) {
+        for (var i = 0; i < results.length; i++) {
+            questions.push(results[i]);   
+        };
+      }
+    }); 
+    
+    $timeout(function(){
+        console.log(questions);
+        $scope.allQuestions = questions;
+    }, 1000);
+
+});
+
+whenIn.controller('UserCtrl', function($scope, $location, $timeout) {
+        
+    $scope.toggleMenu = function() {
+          $scope.sideMenuController.toggleLeft();
+    };
+    
+    $scope.user = Parse.User.current();
+    
+    $scope.goback = function() {
+        $location.path('/home');
+    
+    };
+    
+    $scope.changepassword = function() {
+        console.log($scope.newpassword);
+
+        var query = new Parse.Query(Parse.User);
+        query.equalTo("username", $scope.user.attributes.username);  
+        query.find({
+            success: function(results) {
+                results[0].set("password", $scope.newpassword);
+                results[0].save(null, {
+                  success: function(results) {
+                    $timeout(function() {
+                        $scope.alerts.message = 'Password changed';
+                        $scope.alerts.newClass = 'passchange';
+                    }, 100);
+            
+                }
+            });    
+                
+            }
+        });
+    
+    };
+    console.log($scope.user.attributes.name);
+});
+
+whenIn.controller('AddCtrl', function($scope, $location, $timeout) {
+  $scope.toggleMenu = function() {
+          $scope.sideMenuController.toggleLeft();
+    };
+    
+    $scope.addquestion = function(q) {
+        var Question = Parse.Object.extend("Questions");
+        var question = new Question();
+        
+        question.set("header", q.questionHeader);
+        question.set("question", q.questionText);
+        
+        
+        question.save(null, {
+          success: function() {
+            $timeout(function() {
+                console.log("question added");
+            }, 100);
+           
+          }
+        });
+    };    
 });
 
